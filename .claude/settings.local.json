@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls:*)",
+      "Bash(pnpm add:*)",
+      "Bash(node scripts/export-swagger.js:*)",
+      "Bash(pnpm swagger:export:*)",
+      "Bash(pnpm huawei:export:*)"
+    ]
+  }
+}

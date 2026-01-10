@@ -4,11 +4,13 @@ Express.js API for BottleCRM with JWT authentication, Swagger documentation, and
 
 ## Features
 
-- **Google OAuth Authentication**: Secure Google Sign-In for mobile apps
+- **Multiple Authentication Methods**: 
+  - Email/Password registration and login
+  - Google OAuth for mobile apps
 - **Multi-tenant**: Organization-based data isolation using existing Prisma schema
 - **Swagger Documentation**: Interactive API documentation at `/api-docs`
 - **Request Logging**: Configurable input/output HTTP request logging
-- **Security**: Helmet, CORS, rate limiting
+- **Security**: Helmet, CORS, rate limiting, bcrypt password hashing
 - **Organization Access Control**: Ensures users can only access their organization's data
 
 ## Quick Start
@@ -48,16 +50,54 @@ http://localhost:3001/api-docs
 
 ## Authentication
 
-1. **Google Login**: POST `/api/auth/google`
-   - Request: `{ "idToken": "google-id-token-from-mobile-app" }`
-   - Response: `{ "token": "jwt-token", "user": {...} }`
+### Registration & Login
 
-2. **Use Token**: Include in Authorization header:
+1. **Email/Password Registration**: POST `/auth/register`
+   - Request: 
+     ```json
+     {
+       "name": "John Doe",
+       "email": "john@example.com",
+       "password": "SecurePass123"
+     }
+     ```
+   - Password Requirements:
+     - Minimum 8 characters
+     - At least one uppercase letter
+     - At least one lowercase letter
+     - At least one number
+   - Response: 
+     ```json
+     {
+       "success": true,
+       "JWTtoken": "jwt-token",
+       "user": {...},
+       "organizations": [...]
+     }
+     ```
+
+2. **Email/Password Login**: POST `/auth/login`
+   - Request:
+     ```json
+     {
+       "email": "john@example.com",
+       "password": "SecurePass123"
+     }
+     ```
+   - Response: Same as registration
+
+3. **Google OAuth Login**: POST `/auth/google`
+   - Request: `{ "idToken": "google-id-token-from-mobile-app" }`
+   - Response: `{ "success": true, "JWTtoken": "jwt-token", "user": {...}, "organizations": [...] }`
+
+### Using the API
+
+1. **Use Token**: Include in Authorization header:
    ```
    Authorization: Bearer <jwt-token>
    ```
 
-3. **Select Organization**: Include organization ID in header:
+2. **Select Organization**: Include organization ID in header:
    ```
    X-Organization-ID: <organization-id>
    ```
@@ -65,8 +105,12 @@ http://localhost:3001/api-docs
 ## API Endpoints
 
 ### Authentication
-- `POST /api/auth/google` - Google OAuth mobile login
-- `GET /api/auth/me` - Get current user profile
+- `POST /auth/register` - Register with email and password
+- `POST /auth/login` - Login with email and password
+- `POST /auth/google` - Google OAuth mobile login
+- `GET /auth/me` - Get current user profile
+- `POST /auth/logout` - Logout and revoke current JWT token
+- `POST /auth/revoke-all` - Revoke all JWT tokens for current user
 
 ### Leads
 - `GET /api/leads` - Get organization leads (paginated)
@@ -103,10 +147,18 @@ http://localhost:3001/api-docs
 
 ### Security Features
 
+- **Password Security**:
+  - Bcrypt hashing with 12 rounds
+  - Password strength validation
+  - Secure password storage (never stored in plain text)
 - **Rate Limiting**: 100 requests per 15 minutes per IP
 - **Helmet**: Security headers
 - **CORS**: Cross-origin request handling
 - **JWT Validation**: Token verification on protected routes
+- **Token Management**: 
+  - Token storage in database
+  - Token revocation support
+  - Automatic token expiration
 - **Organization Isolation**: Users can only access their organization's data
 
 ## Data Access Control

@@ -16,6 +16,7 @@ model User {
   id                String              @id @default(uuid())
   user_id           String              @unique
   email             String              @unique
+  password          String?             // Hashed password for email/password auth
   name              String?
   session_id        String?             @unique
   createdAt         DateTime            @default(now())

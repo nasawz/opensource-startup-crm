@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
+import yaml from 'js-yaml';
 import dotenv from 'dotenv';
 import { createLogger } from './api/config/logger.js';
 import { requestLogger } from './api/middleware/requestLogger.js';
@@ -21,7 +22,7 @@ dotenv.config();
 
 const app = express();
 const logger = createLogger();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3002;
 
 // Trust proxy setting for rate limiting
 app.set('trust proxy', 1);
@@ -39,7 +40,14 @@ const swaggerOptions = {
       title: 'BottleCRM API',
       version: '1.0.0',
       description: 'Multi-tenant CRM API with JWT authentication',
+      'x-huawei-plugin-name': 'BottleCRM智能助手',
+      'x-huawei-plugin-desc': 'BottleCRM客户关系管理系统AI助手，支持查询客户数据、创建线索任务、分析销售业绩等功能',
+      'x-huawei-version': '1.0.0',
+      'x-huawei-contact': 'support@bottlecrm.com',
     },
+    'x-huawei-api-type': 'openapi',
+    'x-huawei-category': '办公效率',
+    'x-huawei-tags': ['CRM', '客户管理', '销售', '办公'],
     servers: [
       {
         url: `http://localhost:${PORT}`,
@@ -78,6 +86,20 @@ app.use(express.urlencoded({ extended: true }));
 app.use(requestLogger);
 
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
+
+// Export Swagger specs as JSON
+app.get('/api-docs.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.send(specs);
+});
+
+// Export Swagger specs as YAML
+app.get('/api-docs.yaml', (req, res) => {
+  res.setHeader('Content-Type', 'text/yaml');
+  // Convert JSON to YAML
+  const yamlSpec = yaml.dump(specs, { indent: 2, lineWidth: -1 });
+  res.send(yamlSpec);
+});
 
 app.use('/auth', authRoutes);
 app.use('/dashboard', dashboardRoutes);
