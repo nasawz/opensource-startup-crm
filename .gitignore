@@ -25,3 +25,5 @@ vite.config.ts.timestamp-*
 generated/*
 src/generated/*
 .github/prompts/*
+
+.mastra
