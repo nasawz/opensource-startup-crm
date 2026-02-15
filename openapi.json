@@ -1,15 +1,31 @@
 {
-  "openapi": "3.0.1",
+  "openapi": "3.0.0",
   "info": {
     "title": "BottleCRM API",
-    "version": "V1",
-    "description": "BottleCRM客户关系管理系统API，支持线索管理、客户管理、联系人管理、销售机会、任务管理等功能"
+    "version": "1.0.0",
+    "description": "Multi-tenant CRM API with JWT authentication",
+    "pluginName": "BottleCRM智能助手",
+    "pluginDesc": "BottleCRM客户关系管理系统AI助手，支持查询客户数据、创建线索任务、分析销售业绩等功能",
+    "contact": "support@bottlecrm.com",
+    "x-huawei-plugin-name": "BottleCRM智能助手",
+    "x-huawei-plugin-desc": "BottleCRM客户关系管理系统AI助手，支持查询客户数据、创建线索任务、分析销售业绩等功能",
+    "x-huawei-version": "1.0.0",
+    "x-huawei-contact": "support@bottlecrm.com"
+  },
+  "x-huawei-api-type": "openapi",
+  "x-huawei-category": "办公效率",
+  "x-huawei-tags": [
+    "CRM",
+    "客户管理",
+    "销售",
+    "办公"
+  ],
+  "api": {
+    "name": "BottleCRM API",
+    "description": "BottleCRM客户关系管理系统API",
+    "version": "1.0.0"
   },
   "servers": [
-    {
-      "url": "https://your-domain.com",
-      "description": "Production server"
-    },
     {
       "url": "http://localhost:3002",
       "description": "Development server"
@@ -20,8 +36,7 @@
       "bearerAuth": {
         "type": "http",
         "scheme": "bearer",
-        "bearerFormat": "JWT",
-        "description": "JWT认证令牌"
+        "bearerFormat": "JWT"
       }
     },
     "schemas": {
@@ -307,6 +322,102 @@
           },
           "recentData": {
             "$ref": "#/components/schemas/DashboardRecentData"
+          }
+        }
+      },
+      "HuaweiAuthorizeRequest": {
+        "type": "object",
+        "required": [
+          "jsonrpc",
+          "id",
+          "method",
+          "params"
+        ],
+        "properties": {
+          "jsonrpc": {
+            "type": "string",
+            "example": "2.0"
+          },
+          "id": {
+            "type": "string",
+            "description": "全局唯一消息序列号"
+          },
+          "method": {
+            "type": "string",
+            "enum": [
+              "authorize"
+            ]
+          },
+          "params": {
+            "type": "object",
+            "properties": {
+              "message": {
+                "type": "object",
+                "properties": {
+                  "role": {
+                    "type": "string",
+                    "example": "user"
+                  },
+                  "parts": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "example": "data"
+                        },
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "authCode": {
+                              "type": "string",
+                              "description": "华为账号授权码"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "HuaweiAuthorizeResponse": {
+        "type": "object",
+        "properties": {
+          "jsonrpc": {
+            "type": "string",
+            "example": "2.0"
+          },
+          "id": {
+            "type": "string"
+          },
+          "result": {
+            "type": "object",
+            "properties": {
+              "version": {
+                "type": "string",
+                "example": "1.0"
+              },
+              "agentLoginSessionId": {
+                "type": "string",
+                "description": "用户登录凭证唯一ID"
+              }
+            }
+          },
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "integer"
+              },
+              "message": {
+                "type": "string"
+              }
+            }
           }
         }
       },
@@ -1054,6 +1165,118 @@
           },
           "500": {
             "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/agent/message": {
+      "post": {
+        "summary": "华为小艺智能体消息入口（授权/解除授权）",
+        "description": "处理小艺APP发送的授权和解除授权请求。\n- method=authorize: 用户授权，返回 agentLoginSessionId\n- method=deauthorize: 解除授权\n",
+        "tags": [
+          "Huawei Agent"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "agent-session-id",
+            "schema": {
+              "type": "string"
+            },
+            "description": "智能体会话ID（可选，用于已登录用户）"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HuaweiAuthorizeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "操作成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HuaweiAuthorizeResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "认证失败"
+          },
+          "500": {
+            "description": "服务器错误"
+          }
+        }
+      }
+    },
+    "/agent/auth/huawei": {
+      "post": {
+        "summary": "使用华为授权码登录/注册",
+        "description": "使用华为账号授权码进行登录或注册。\n如果用户不存在，会自动创建新用户。\n返回标准的 JWT token 用于后续 API 调用。\n",
+        "tags": [
+          "Huawei Agent"
+        ],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "authCode"
+                ],
+                "properties": {
+                  "authCode": {
+                    "type": "string",
+                    "description": "华为账号授权码"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "登录/注册成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "JWTtoken": {
+                      "type": "string"
+                    },
+                    "user": {
+                      "type": "object"
+                    },
+                    "organizations": {
+                      "type": "array"
+                    },
+                    "isNewUser": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数错误"
+          },
+          "500": {
+            "description": "服务器错误"
           }
         }
       }

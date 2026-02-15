@@ -52,10 +52,8 @@ const loginSchema = z.object({
  *               type: string
  *             email:
  *               type: string
- *             firstName:
- *               type: string
- *             lastName:
- *               type: string
+ *             name:
+              type: string
  *             profileImage:
  *               type: string
  *             organizations:
@@ -391,10 +389,10 @@ router.post('/login', async (req, res) => {
  *                       type: string
  *                     email:
  *                       type: string
- *                     firstName:
- *                       type: string
- *                     lastName:
- *                       type: string
+ *                     name:
+                      type: string
+                    profileImage:
+                      type: string
  *                     organizations:
  *                       type: array
  *       401:
@@ -405,9 +403,9 @@ router.get('/me', verifyToken, async (req, res) => {
 		const userResponse = {
 			id: req.user.id,
 			email: req.user.email,
-			firstName: req.user.firstName,
-			lastName: req.user.lastName,
-			organizations: req.user.userOrganizations.map((uo) => ({
+			name: req.user.name,
+			profileImage: req.user.profilePhoto,
+			organizations: req.user.organizations.map((uo) => ({
 				id: uo.organization.id,
 				name: uo.organization.name,
 				role: uo.role

@@ -3,6 +3,10 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+/**
+ * 验证 JWT Token
+ * 仅支持标准的 Bearer Token 认证
+ */
 export const verifyToken = async (req, res, next) => {
   try {
     const token = req.header('Authorization')?.replace('Bearer ', '');
@@ -60,6 +64,7 @@ export const verifyToken = async (req, res, next) => {
     req.user = dbToken.user;
     req.userId = dbToken.user.id;
     req.tokenId = dbToken.id;
+    req.authType = 'jwt';
     next();
   } catch (error) {
     if (error.name === 'JsonWebTokenError') {
@@ -72,6 +77,118 @@ export const verifyToken = async (req, res, next) => {
     return res.status(401).json({ error: 'Token validation failed.' });
   }
 };
+
+/**
+ * 统一认证中间件
+ * 同时支持 JWT Token 和华为智能体会话认证
+ * 
+ * 认证优先级：
+ * 1. Authorization Header (Bearer Token) - 标准 JWT 认证
+ * 2. agent-session-id Header - 华为智能体会话认证
+ * 
+ * 使用方式：
+ * - 标准 API 调用: Authorization: Bearer <jwt-token>
+ * - 华为智能体调用: agent-session-id: <agentLoginSessionId>
+ */
+export const verifyAuth = async (req, res, next) => {
+  try {
+    const authHeader = req.header('Authorization');
+    const agentSessionId = req.header('agent-session-id');
+
+    // 优先检查 JWT Token
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      return verifyToken(req, res, next);
+    }
+
+    // 检查华为智能体会话
+    if (agentSessionId) {
+      return verifyAgentSession(req, res, next, agentSessionId);
+    }
+
+    // 两种认证方式都没有提供
+    return res.status(401).json({ 
+      error: 'Access denied. No authentication provided.',
+      hint: 'Provide either Authorization header (Bearer token) or agent-session-id header.'
+    });
+  } catch (error) {
+    console.error('Auth verification error:', error);
+    return res.status(401).json({ error: 'Authentication failed.' });
+  }
+};
+
+/**
+ * 验证华为智能体会话
+ * @param {Request} req 
+ * @param {Response} res 
+ * @param {Function} next 
+ * @param {string} agentSessionId 
+ */
+async function verifyAgentSession(req, res, next, agentSessionId) {
+  try {
+    // 可选：验证 API Key（如果配置了的话）
+    const apiKeyHeader = process.env.HUAWEI_AGENT_API_KEY || 'X-Agent-Api-Key';
+    const apiSecret = process.env.HUAWEI_AGENT_API_SECRET;
+    
+    if (apiSecret) {
+      const providedKey = req.header(apiKeyHeader);
+      if (providedKey && providedKey !== apiSecret) {
+        return res.status(401).json({ error: 'Invalid API key.' });
+      }
+    }
+
+    // 查找有效的会话
+    const session = await prisma.huaweiAgentSession.findFirst({
+      where: {
+        agentLoginSessionId: agentSessionId,
+        isRevoked: false,
+        expiresAt: {
+          gt: new Date()
+        }
+      },
+      include: {
+        user: {
+          include: {
+            organizations: {
+              include: {
+                organization: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!session) {
+      return res.status(401).json({ 
+        error: 'Invalid or expired agent session.',
+        code: 'AGENT_SESSION_INVALID'
+      });
+    }
+
+    if (!session.user) {
+      return res.status(401).json({ error: 'User not found for this session.' });
+    }
+
+    // 更新最后使用时间
+    await prisma.huaweiAgentSession.update({
+      where: { id: session.id },
+      data: { lastUsedAt: new Date() }
+    });
+
+    // 将用户信息附加到请求对象
+    req.user = session.user;
+    req.userId = session.user.id;
+    req.agentSession = session;
+    req.agentSessionId = session.agentLoginSessionId;
+    req.huaweiOpenId = session.huaweiOpenId;
+    req.authType = 'huawei_agent';
+
+    next();
+  } catch (error) {
+    console.error('Agent session verification error:', error);
+    return res.status(401).json({ error: 'Agent session validation failed.' });
+  }
+}
 
 export const requireOrganization = async (req, res, next) => {
   try {

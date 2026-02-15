@@ -25,6 +25,10 @@ model User {
   phone             String?
   isActive          Boolean             @default(true)
   lastLogin         DateTime?
+  // 华为账号绑定字段
+  huaweiOpenId      String?             @unique // 华为账号唯一标识
+  huaweiUnionId     String?             // 华为账号联合ID（跨应用）
+  huaweiPhone       String?             // 从华为账号获取的手机号
   accounts          Account[]
   deletedAccounts   Account[]           @relation("DeletedAccounts")
   contacts          Contact[]
@@ -45,6 +49,7 @@ model User {
   BoardTaskActivity BoardTaskActivity[]
   BlogPost          BlogPost[]
   jwtTokens         JwtToken[]
+  huaweiSessions    HuaweiAgentSession[]
 }
 
 model JwtToken {
@@ -61,6 +66,27 @@ model JwtToken {
   lastUsedAt  DateTime?
 
   @@index([userId])
+  @@index([expiresAt])
+  @@index([isRevoked])
+}
+
+// 华为小艺智能体会话模型
+model HuaweiAgentSession {
+  id                    String    @id @default(uuid())
+  agentLoginSessionId   String    @unique // 返回给小艺APP的会话凭证
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  huaweiOpenId          String    // 华为账号唯一标识
+  expiresAt             DateTime
+  isRevoked             Boolean   @default(false)
+  deviceInfo            String?   // 设备信息
+  ipAddress             String?   // IP地址
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  lastUsedAt            DateTime?
+
+  @@index([userId])
+  @@index([huaweiOpenId])
   @@index([expiresAt])
   @@index([isRevoked])
 }

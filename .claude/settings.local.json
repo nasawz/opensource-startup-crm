@@ -5,7 +5,12 @@
       "Bash(pnpm add:*)",
       "Bash(node scripts/export-swagger.js:*)",
       "Bash(pnpm swagger:export:*)",
-      "Bash(pnpm huawei:export:*)"
+      "Bash(pnpm huawei:export:*)",
+      "Bash(mv:*)"
     ]
-  }
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "reminds-mcp"
+  ]
 }

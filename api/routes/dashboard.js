@@ -1,6 +1,6 @@
 import express from 'express';
 import { PrismaClient } from '@prisma/client';
-import { verifyToken, requireOrganization } from '../middleware/auth.js';
+import { verifyAuth, requireOrganization } from '../middleware/auth.js';
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -149,7 +149,7 @@ const prisma = new PrismaClient();
  *       500:
  *         description: Internal server error
  */
-router.get('/', verifyToken, requireOrganization, async (req, res) => {
+router.get('/', verifyAuth, requireOrganization, async (req, res) => {
   try {
     const userId = req.userId;
     const organizationId = req.organizationId;
@@ -310,7 +310,7 @@ router.get('/', verifyToken, requireOrganization, async (req, res) => {
  *       500:
  *         description: Internal server error
  */
-router.get('/metrics', verifyToken, requireOrganization, async (req, res) => {
+router.get('/metrics', verifyAuth, requireOrganization, async (req, res) => {
   try {
     const userId = req.userId;
     const organizationId = req.organizationId;

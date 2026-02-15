@@ -1,11 +1,12 @@
 import express from 'express';
 import { PrismaClient } from '@prisma/client';
-import { verifyToken, requireOrganization } from '../middleware/auth.js';
+import { verifyAuth, requireOrganization } from '../middleware/auth.js';
 
 const router = express.Router();
 const prisma = new PrismaClient();
 
-router.use(verifyToken);
+// 使用 verifyAuth 同时支持 JWT Token 和华为智能体会话认证
+router.use(verifyAuth);
 router.use(requireOrganization);
 
 /**
@@ -254,6 +255,190 @@ router.get('/:id', async (req, res) => {
     res.json(contact);
   } catch (error) {
     console.error('Get contact details error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * @swagger
+ * /contacts/{id}:
+ *   put:
+ *     summary: Update a contact
+ *     tags: [Contacts]
+ *     parameters:
+ *       - in: header
+ *         name: X-Organization-ID
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Contact ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               firstName:
+ *                 type: string
+ *               lastName:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               phone:
+ *                 type: string
+ *               title:
+ *                 type: string
+ *               department:
+ *                 type: string
+ *               street:
+ *                 type: string
+ *               city:
+ *                 type: string
+ *               state:
+ *                 type: string
+ *               postalCode:
+ *                 type: string
+ *               country:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               accountId:
+ *                 type: string
+ *                 description: UUID of the account to associate with this contact
+ *     responses:
+ *       200:
+ *         description: Contact updated successfully
+ *       400:
+ *         description: Validation error
+ *       404:
+ *         description: Contact not found
+ */
+router.put('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { firstName, lastName, email, phone, title, department, street, city, state, postalCode, country, description, accountId } = req.body;
+
+    // Check if contact exists and belongs to organization
+    const existingContact = await prisma.contact.findFirst({
+      where: {
+        id: id,
+        organizationId: req.organizationId
+      }
+    });
+
+    if (!existingContact) {
+      return res.status(404).json({ error: 'Contact not found' });
+    }
+
+    // Validate firstName and lastName if provided
+    if (firstName !== undefined && !firstName.trim()) {
+      return res.status(400).json({ error: 'First name cannot be empty' });
+    }
+    if (lastName !== undefined && !lastName.trim()) {
+      return res.status(400).json({ error: 'Last name cannot be empty' });
+    }
+
+    // Validate account if provided
+    if (accountId) {
+      const account = await prisma.account.findFirst({
+        where: {
+          id: accountId,
+          organizationId: req.organizationId
+        }
+      });
+
+      if (!account) {
+        return res.status(400).json({ error: 'Account not found in your organization' });
+      }
+    }
+
+    // Check for duplicate email if email is being changed
+    if (email && email !== existingContact.email) {
+      const duplicateContact = await prisma.contact.findFirst({
+        where: {
+          email: email,
+          organizationId: req.organizationId,
+          NOT: {
+            id: id
+          }
+        }
+      });
+
+      if (duplicateContact) {
+        return res.status(400).json({ error: 'A contact with this email already exists in this organization' });
+      }
+    }
+
+    // Update the contact
+    await prisma.contact.update({
+      where: { id: id },
+      data: {
+        firstName: firstName !== undefined ? firstName.trim() : undefined,
+        lastName: lastName !== undefined ? lastName.trim() : undefined,
+        email: email !== undefined ? (email ? email.trim() : null) : undefined,
+        phone: phone !== undefined ? (phone ? phone.trim() : null) : undefined,
+        title: title !== undefined ? (title ? title.trim() : null) : undefined,
+        department: department !== undefined ? (department ? department.trim() : null) : undefined,
+        street: street !== undefined ? (street ? street.trim() : null) : undefined,
+        city: city !== undefined ? (city ? city.trim() : null) : undefined,
+        state: state !== undefined ? (state ? state.trim() : null) : undefined,
+        postalCode: postalCode !== undefined ? (postalCode ? postalCode.trim() : null) : undefined,
+        country: country !== undefined ? (country ? country.trim() : null) : undefined,
+        description: description !== undefined ? (description ? description.trim() : null) : undefined,
+      }
+    });
+
+    // Handle account relationship if accountId is provided
+    if (accountId) {
+      // Check if relationship exists
+      const relationship = await prisma.accountContactRelationship.findFirst({
+        where: {
+          contactId: id,
+          accountId: accountId
+        }
+      });
+
+      if (!relationship) {
+        // Create new relationship
+        await prisma.accountContactRelationship.create({
+          data: {
+            accountId: accountId,
+            contactId: id,
+            isPrimary: true
+          }
+        });
+      }
+    }
+
+    // Fetch the updated contact with relationships
+    const updatedContact = await prisma.contact.findUnique({
+      where: { id: id },
+      include: {
+        relatedAccounts: {
+          include: {
+            account: {
+              select: { id: true, name: true, type: true, website: true, phone: true }
+            }
+          }
+        },
+        owner: {
+          select: { id: true, name: true, email: true }
+        },
+        organization: {
+          select: { id: true, name: true }
+        }
+      }
+    });
+
+    res.json(updatedContact);
+  } catch (error) {
+    console.error('Update contact error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

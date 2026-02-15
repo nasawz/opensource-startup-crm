@@ -1,11 +1,12 @@
 import express from 'express';
 import { PrismaClient } from '@prisma/client';
-import { verifyToken, requireOrganization } from '../middleware/auth.js';
+import { verifyAuth, requireOrganization } from '../middleware/auth.js';
 
 const router = express.Router();
 const prisma = new PrismaClient();
 
-router.use(verifyToken);
+// 使用 verifyAuth 同时支持 JWT Token 和华为智能体会话认证
+router.use(verifyAuth);
 router.use(requireOrganization);
 
 /**

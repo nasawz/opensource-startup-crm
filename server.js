@@ -1,4 +1,6 @@
 import express from 'express';
+import https from 'https';
+import fs from 'fs';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
@@ -17,12 +19,14 @@ import contactRoutes from './api/routes/contacts.js';
 import opportunityRoutes from './api/routes/opportunities.js';
 import taskRoutes from './api/routes/tasks.js';
 import organizationRoutes from './api/routes/organizations.js';
+import huaweiAgentRoutes from './api/routes/huaweiAgent.js';
 
 dotenv.config();
 
 const app = express();
 const logger = createLogger();
 const PORT = process.env.PORT || 3002;
+const PROTOCOL = process.env.ENABLE_HTTPS === 'true' ? 'https' : 'http';
 
 // Trust proxy setting for rate limiting
 app.set('trust proxy', 1);
@@ -50,8 +54,12 @@ const swaggerOptions = {
     'x-huawei-tags': ['CRM', '客户管理', '销售', '办公'],
     servers: [
       {
-        url: `http://localhost:${PORT}`,
+        url: `${PROTOCOL}://localhost:${PORT}`,
         description: 'Development server',
+      },
+      {
+        url: `https://1333h44n-3002.inc1.devtunnels.ms/`,
+        description: 'Production server',
       },
     ],
     components: {
@@ -109,6 +117,7 @@ app.use('/contacts', contactRoutes);
 app.use('/opportunities', opportunityRoutes);
 app.use('/tasks', taskRoutes);
 app.use('/organizations', organizationRoutes);
+app.use('/agent', huaweiAgentRoutes);
 
 app.get('/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
@@ -116,9 +125,26 @@ app.get('/health', (req, res) => {
 
 app.use(errorHandler);
 
-app.listen(PORT, () => {
-  logger.info(`BottleCRM API server running on port ${PORT}`);
-  logger.info(`Swagger documentation available at http://localhost:${PORT}/api-docs`);
-});
+if (process.env.ENABLE_HTTPS === 'true') {
+  try {
+    const httpsOptions = {
+      key: fs.readFileSync('certs/server.key'),
+      cert: fs.readFileSync('certs/server.cert')
+    };
+    
+    https.createServer(httpsOptions, app).listen(PORT, () => {
+      logger.info(`BottleCRM API server running on port ${PORT} (HTTPS)`);
+      logger.info(`Swagger documentation available at https://localhost:${PORT}/api-docs`);
+    });
+  } catch (error) {
+    logger.error('Failed to start HTTPS server:', error);
+    process.exit(1);
+  }
+} else {
+  app.listen(PORT, () => {
+    logger.info(`BottleCRM API server running on port ${PORT}`);
+    logger.info(`Swagger documentation available at http://localhost:${PORT}/api-docs`);
+  });
+}
 
 export default app;
