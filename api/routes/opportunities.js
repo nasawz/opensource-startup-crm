@@ -35,7 +35,7 @@ router.get('/', async (req, res) => {
           select: { id: true, name: true }
         },
         owner: {
-          select: { id: true, firstName: true, lastName: true, email: true }
+          select: { id: true, name: true, email: true }
         }
       }
     });
@@ -122,7 +122,7 @@ router.post('/', async (req, res) => {
           select: { id: true, name: true }
         },
         owner: {
-          select: { id: true, firstName: true, lastName: true, email: true }
+          select: { id: true, name: true, email: true }
         }
       }
     });

@@ -59,7 +59,7 @@ const swaggerOptions = {
         description: 'Development server',
       },
       {
-        url: `https://1333h44n-3002.inc1.devtunnels.ms/`,
+        url: `http://api-bottlecrm.xiangshikeji.com/`,
         description: 'Production server',
       },
     ],

@@ -1,32 +1,25 @@
 node_modules
-
-# Output
 .output
 .vercel
 .netlify
 .wrangler
-/.svelte-kit
-/build
-
-# OS
+.svelte-kit
+build
 .DS_Store
 Thumbs.db
-
-# Env
 .env
 .env.*
 !.env.example
 !.env.test
-
-# Vite
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
-
-generated/*
-src/generated/*
-.github/prompts/*
-
+generated
+src/generated
+.github
 .mastra
-
-# Data (LibSQL storage)
-data/
+data
+.git
+*.tar
+*.tar.gz
+bottlecrm-api.tar
+bottlecrm-api.tar.gz

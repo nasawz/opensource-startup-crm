@@ -56,7 +56,7 @@ router.get('/', async (req, res) => {
       orderBy: { createdAt: 'desc' },
       include: {
         owner: {
-          select: { id: true, firstName: true, lastName: true, email: true }
+          select: { id: true, name: true, email: true }
         }
       }
     });
@@ -123,7 +123,7 @@ router.post('/', async (req, res) => {
       },
       include: {
         owner: {
-          select: { id: true, firstName: true, lastName: true, email: true }
+          select: { id: true, name: true, email: true }
         }
       }
     });
