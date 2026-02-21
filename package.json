@@ -16,7 +16,11 @@
 		"api:start": "node server.js",
 		"mastra:dev": "mastra dev -d api/mastra/",
 		"swagger:export": "node scripts/export-swagger.js",
-		"huawei:export": "node scripts/export-huawei.js"
+		"huawei:export": "node scripts/export-huawei.js",
+		"docker:build": "bash scripts/docker-build.sh",
+		"docker:run": "bash scripts/docker-run.sh",
+		"docker:test": "bash scripts/docker-test.sh",
+		"deploy": "bash scripts/deploy.sh"
 	},
 	"devDependencies": {
 		"@eslint/compat": "^1.4.0",

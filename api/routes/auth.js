@@ -53,7 +53,7 @@ const loginSchema = z.object({
  *             email:
  *               type: string
  *             name:
-              type: string
+ *               type: string
  *             profileImage:
  *               type: string
  *             organizations:
@@ -68,7 +68,6 @@ const loginSchema = z.object({
  *                   role:
  *                     type: string
  */
-
 
 /**
  * @swagger
@@ -187,11 +186,9 @@ router.post('/register', async (req, res) => {
 		});
 
 		// Create JWT token
-		const JWTtoken = jwt.sign(
-			{ userId: user.id },
-			process.env.JWT_SECRET,
-			{ expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
-		);
+		const JWTtoken = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, {
+			expiresIn: process.env.JWT_EXPIRES_IN || '24h'
+		});
 
 		// Calculate expiration date
 		const expiresIn = process.env.JWT_EXPIRES_IN || '24h';
@@ -322,11 +319,9 @@ router.post('/login', async (req, res) => {
 		});
 
 		// Create JWT token
-		const JWTtoken = jwt.sign(
-			{ userId: user.id },
-			process.env.JWT_SECRET,
-			{ expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
-		);
+		const JWTtoken = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, {
+			expiresIn: process.env.JWT_EXPIRES_IN || '24h'
+		});
 
 		// Calculate expiration date
 		const expiresIn = process.env.JWT_EXPIRES_IN || '24h';
@@ -390,9 +385,9 @@ router.post('/login', async (req, res) => {
  *                     email:
  *                       type: string
  *                     name:
-                      type: string
-                    profileImage:
-                      type: string
+ *                       type: string
+ *                     profileImage:
+ *                       type: string
  *                     organizations:
  *                       type: array
  *       401:
@@ -445,101 +440,97 @@ router.get('/me', verifyToken, async (req, res) => {
  *         description: Server error
  */
 router.post('/google', async (req, res) => {
-  try {
-    const { idToken } = req.body;
+	try {
+		const { idToken } = req.body;
 
-    if (!idToken) {
-      return res.status(400).json({ error: 'Google ID token is required' });
-    }
+		if (!idToken) {
+			return res.status(400).json({ error: 'Google ID token is required' });
+		}
 
-    // Support both web and mobile client IDs
-    const audiences = [
-      process.env.GOOGLE_CLIENT_ID
-    ];
+		// Support both web and mobile client IDs
+		const audiences = [process.env.GOOGLE_CLIENT_ID];
 
-    const ticket = await googleClient.verifyIdToken({
-      idToken,
-      audience: audiences
-    });
+		const ticket = await googleClient.verifyIdToken({
+			idToken,
+			audience: audiences
+		});
 
-    const payload = ticket.getPayload();
-    
-    if (!payload || !payload.email) {
-      return res.status(400).json({ error: 'Invalid Google token' });
-    }
+		const payload = ticket.getPayload();
 
-    let user = await prisma.user.upsert({
-      where: { email: payload.email },
-      update: { 
-        profilePhoto: payload.picture,
-        lastLogin: new Date(),
-        // Update name fields if they exist in the token
-        ...(payload.name && { name: payload.name })
-      },
-      create: {
-        email: payload.email,
-        name: payload.name || `${payload.given_name || ''} ${payload.family_name || ''}`.trim(),
-        profilePhoto: payload.picture,
-        user_id: payload.sub, // Use 'sub' field which is the stable Google user ID
-        lastLogin: new Date()
-      },
-      include: {
-        organizations: {
-          include: {
-            organization: true
-          }
-        }
-      }
-    });
+		if (!payload || !payload.email) {
+			return res.status(400).json({ error: 'Invalid Google token' });
+		}
 
-    // Create JWT token for API access
-    const JWTtoken = jwt.sign(
-      { userId: user.id },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
-    );
+		let user = await prisma.user.upsert({
+			where: { email: payload.email },
+			update: {
+				profilePhoto: payload.picture,
+				lastLogin: new Date(),
+				// Update name fields if they exist in the token
+				...(payload.name && { name: payload.name })
+			},
+			create: {
+				email: payload.email,
+				name: payload.name || `${payload.given_name || ''} ${payload.family_name || ''}`.trim(),
+				profilePhoto: payload.picture,
+				user_id: payload.sub, // Use 'sub' field which is the stable Google user ID
+				lastLogin: new Date()
+			},
+			include: {
+				organizations: {
+					include: {
+						organization: true
+					}
+				}
+			}
+		});
 
-    // Calculate expiration date
-    const expiresIn = process.env.JWT_EXPIRES_IN || '24h';
-    const expirationHours = expiresIn.includes('h') ? parseInt(expiresIn) : 24;
-    const expiresAt = new Date(Date.now() + expirationHours * 60 * 60 * 1000);
+		// Create JWT token for API access
+		const JWTtoken = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, {
+			expiresIn: process.env.JWT_EXPIRES_IN || '24h'
+		});
 
-    // Store JWT token in database
-    await prisma.jwtToken.create({
-      data: {
-        token: JWTtoken,
-        userId: user.id,
-        expiresAt: expiresAt,
-        deviceInfo: req.get('User-Agent'),
-        ipAddress: req.ip || req.socket.remoteAddress
-      }
-    });
+		// Calculate expiration date
+		const expiresIn = process.env.JWT_EXPIRES_IN || '24h';
+		const expirationHours = expiresIn.includes('h') ? parseInt(expiresIn) : 24;
+		const expiresAt = new Date(Date.now() + expirationHours * 60 * 60 * 1000);
 
-    // Format response to match SvelteKit patterns
-    const userResponse = {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      profileImage: user.profilePhoto,      
-    };
+		// Store JWT token in database
+		await prisma.jwtToken.create({
+			data: {
+				token: JWTtoken,
+				userId: user.id,
+				expiresAt: expiresAt,
+				deviceInfo: req.get('User-Agent'),
+				ipAddress: req.ip || req.socket.remoteAddress
+			}
+		});
 
-    res.json({ 
-      success: true,
-      JWTtoken, 
-      user: userResponse,
-      organizations: user.organizations.map(uo => ({
-        id: uo.organization.id,
-        name: uo.organization.name,
-        role: uo.role
-      }))
-    });
-  } catch (error) {
-    console.error('Google login error:', error);
-    if (error.message && error.message.includes('Invalid token')) {
-      return res.status(400).json({ error: 'Invalid Google token' });
-    }
-    res.status(500).json({ error: 'Internal server error' });
-  }
+		// Format response to match SvelteKit patterns
+		const userResponse = {
+			id: user.id,
+			email: user.email,
+			name: user.name,
+			profileImage: user.profilePhoto
+		};
+
+		res.json({
+			success: true,
+			JWTtoken,
+			user: userResponse,
+			organizations: user.organizations.map((uo) => ({
+				id: uo.organization.id,
+				name: uo.organization.name,
+				role: uo.role
+			}))
+		});
+	} catch (error) {
+		console.error('Google login error:', error);
+		if (error.message && error.message.includes('Invalid token')) {
+			return res.status(400).json({ error: 'Invalid Google token' });
+		}
+		res.status(500).json({ error: 'Internal server error' });
+	}
 });
 
 /**
@@ -566,24 +557,24 @@ router.post('/google', async (req, res) => {
  *         description: Unauthorized
  */
 router.post('/logout', verifyToken, async (req, res) => {
-  try {
-    // Revoke the current token
-    await prisma.jwtToken.update({
-      where: { id: req.tokenId },
-      data: { 
-        isRevoked: true,
-        updatedAt: new Date()
-      }
-    });
+	try {
+		// Revoke the current token
+		await prisma.jwtToken.update({
+			where: { id: req.tokenId },
+			data: {
+				isRevoked: true,
+				updatedAt: new Date()
+			}
+		});
 
-    res.json({ 
-      success: true,
-      message: 'Successfully logged out' 
-    });
-  } catch (error) {
-    console.error('Logout error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
+		res.json({
+			success: true,
+			message: 'Successfully logged out'
+		});
+	} catch (error) {
+		console.error('Logout error:', error);
+		res.status(500).json({ error: 'Internal server error' });
+	}
 });
 
 /**
@@ -612,28 +603,28 @@ router.post('/logout', verifyToken, async (req, res) => {
  *         description: Unauthorized
  */
 router.post('/revoke-all', verifyToken, async (req, res) => {
-  try {
-    // Revoke all tokens for the user
-    const result = await prisma.jwtToken.updateMany({
-      where: { 
-        userId: req.userId,
-        isRevoked: false
-      },
-      data: { 
-        isRevoked: true,
-        updatedAt: new Date()
-      }
-    });
+	try {
+		// Revoke all tokens for the user
+		const result = await prisma.jwtToken.updateMany({
+			where: {
+				userId: req.userId,
+				isRevoked: false
+			},
+			data: {
+				isRevoked: true,
+				updatedAt: new Date()
+			}
+		});
 
-    res.json({ 
-      success: true,
-      message: 'Successfully revoked all tokens',
-      revokedCount: result.count
-    });
-  } catch (error) {
-    console.error('Revoke all tokens error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
+		res.json({
+			success: true,
+			message: 'Successfully revoked all tokens',
+			revokedCount: result.count
+		});
+	} catch (error) {
+		console.error('Revoke all tokens error:', error);
+		res.status(500).json({ error: 'Internal server error' });
+	}
 });
 
 export default router;
